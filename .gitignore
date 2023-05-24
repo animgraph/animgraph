@@ -1,1 +1,4 @@
 /target
+tarpaulin-report.html
+*.ag
+*.agc
