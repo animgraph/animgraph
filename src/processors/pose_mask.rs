@@ -91,9 +91,7 @@ pub mod compile {
     impl NodeCompiler for PoseMaskNode {
         type Settings = PoseMaskNodeSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let bone_group = context.input_resource(0)?;
             context.serialize_node(PoseMaskNode { bone_group })
         }

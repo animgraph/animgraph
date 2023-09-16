@@ -13,7 +13,7 @@ use crate::{
     },
     FlowState, FromFloatUnchecked, GraphBoolean, GraphBuilderError, GraphCompiledNode,
     GraphCondition, GraphExpression, GraphMetrics, GraphNodeConstructor, GraphNumber,
-    GraphParameterEntry, GraphResourceEntry, Id, IndexType, GraphNumberExpression,
+    GraphNumberExpression, GraphParameterEntry, GraphResourceEntry, Id, IndexType,
 };
 
 use super::{
@@ -65,7 +65,7 @@ impl<'a> NodeSerializationContext<'a> {
         &self,
         value: T,
     ) -> Result<Value, NodeCompilationError> {
-        if let Err(err) = value.clone().construct_entry(&self.metrics) {
+        if let Err(err) = value.clone().construct_entry(self.metrics) {
             return Err(NodeCompilationError::ValidationError(
                 self.node.path.join(),
                 err,
@@ -198,7 +198,7 @@ impl<'a> NodeSerializationContext<'a> {
 pub trait NodeCompiler {
     type Settings: NodeSettings + Default;
 
-    fn build<'a>(context: &NodeSerializationContext<'a>) -> Result<Value, NodeCompilationError>;
+    fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError>;
 }
 
 struct NodeCompilerMeta<'a, T: NodeCompiler + 'a>(PhantomData<&'a T>);
@@ -341,29 +341,25 @@ pub trait IndexConversions: TryInto<IndexType> {
     }
 
     fn try_node_type_index(self) -> IndexedResult<IndexType> {
-        Ok(self
-            .try_into()
-            .map_err(|_| AnimGraphIndexError::MaxNodeTypesReached)?)
+        self.try_into()
+            .map_err(|_| AnimGraphIndexError::MaxNodeTypesReached)
     }
 
     fn try_branch_index(self) -> IndexedResult<BranchIndex> {
-        Ok(self
-            .try_into()
-            .map_err(|_| AnimGraphIndexError::MaxBranchesReached)?)
+        self.try_into()
+            .map_err(|_| AnimGraphIndexError::MaxBranchesReached)
     }
 
     fn try_branch_child_index(self) -> IndexedResult<u8> {
-        Ok(self
-            .try_into()
+        self.try_into()
             .map_err(|_| AnimGraphIndexError::MaxBranchChildrenReached)?
             .try_into()
-            .map_err(|_| AnimGraphIndexError::MaxBranchChildrenReached)?)
+            .map_err(|_| AnimGraphIndexError::MaxBranchChildrenReached)
     }
 
     fn try_transition_index(self) -> IndexedResult<IndexType> {
-        Ok(self
-            .try_into()
-            .map_err(|_| AnimGraphIndexError::MaxTransitionsReached)?)
+        self.try_into()
+            .map_err(|_| AnimGraphIndexError::MaxTransitionsReached)
     }
 }
 
@@ -426,16 +422,16 @@ pub enum ContextPath<'a> {
 impl<'a> ContextPath<'a> {
     pub fn append(&self, route: &'a str) -> IndexedPath<'a> {
         if route.starts_with("::") {
-            return IndexedPath::from_str(route);
+            return IndexedPath::from_route(route);
         }
 
-        let mut context = match self {
-            &ContextPath::ParentOf(child) => {
+        let mut context = match *self {
+            ContextPath::ParentOf(child) => {
                 let mut parent = child.clone();
                 debug_assert!(parent.path.pop().is_some());
                 parent
             }
-            &ContextPath::Path(context) => context.clone(),
+            ContextPath::Path(context) => context.clone(),
         };
 
         context.append_path(route);
@@ -478,7 +474,7 @@ fn indexed_path(path: &str) -> (Option<usize>, &str) {
 
 impl<'a> IndexedPath<'a> {
     pub fn append_path(&mut self, mut value: &'a str) {
-        while let Some((path, rest)) = value.split_once("/") {
+        while let Some((path, rest)) = value.split_once('/') {
             value = rest;
             let (index, part) = indexed_path(path);
             self.push(index, part);
@@ -489,12 +485,12 @@ impl<'a> IndexedPath<'a> {
             self.push(index, part);
         }
     }
-    pub fn from_str(mut value: &'a str) -> Self {
+    pub fn from_route(mut value: &'a str) -> Self {
         let mut result = IndexedPath::default();
 
         if value.starts_with("::") {
             value = &value[2..];
-            let mut scope = if let Some((scope, rest)) = value.split_once("/") {
+            let mut scope = if let Some((scope, rest)) = value.split_once('/') {
                 value = rest;
                 scope
             } else {
@@ -630,7 +626,7 @@ fn build_tree_scope<'a>(
                     .get(global_index.0 as usize)
                     .map(|x| x.path.join())
                     .unwrap_or_default();
-                return Err(DuplicateAliasError(child.alias.clone(), dup1, dup2).into());
+                return Err(DuplicateAliasError(child.alias.clone(), dup1, dup2));
             }
         }
 
@@ -647,7 +643,10 @@ fn build_tree_scope<'a>(
                 inputs: Default::default(),
             });
         } else {
-            return Err(MissingNodeMetaError(child.name.clone(), qualified_path.join()).into());
+            return Err(MissingNodeMetaError(
+                child.name.clone(),
+                qualified_path.join(),
+            ));
         }
 
         paths.pop(Some(index), &child.name);
@@ -707,7 +706,10 @@ fn build_tree_root<'a>(
             inputs: Default::default(),
         });
     } else {
-        return Err(MissingNodeMetaError(node.name.clone(), qualified_path.join()).into());
+        return Err(MissingNodeMetaError(
+            node.name.clone(),
+            qualified_path.join(),
+        ));
     }
 
     if !node.alias.is_empty() {
@@ -720,7 +722,7 @@ fn build_tree_root<'a>(
                 .get(global_index.0 as usize)
                 .map(|x| x.path.join())
                 .unwrap_or_default();
-            return Err(DuplicateAliasError(node.alias.clone(), dup1, dup2).into());
+            return Err(DuplicateAliasError(node.alias.clone(), dup1, dup2));
         }
     }
 
@@ -779,7 +781,7 @@ fn build_branch_scope<'a>(
                 let global_index: BranchIndex = branches.len().try_branch_index()?;
                 branches.push(BranchCompilationContext {
                     path: qualified_path,
-                    branch: branch,
+                    branch,
                     target: HierarchicalBranch::default(),
                 });
                 let child_branch = build_branch_scope(
@@ -835,17 +837,19 @@ fn build_branch_scope<'a>(
             }
             BranchTarget::StateMachine(target) => {
                 if processed_machines.contains_key(&target.name.as_str()) {
-                    return Err(
-                        CyclicStateMachineTargetError(target.name.clone(), paths.join()).into(),
-                    );
+                    return Err(CyclicStateMachineTargetError(
+                        target.name.clone(),
+                        paths.join(),
+                    ));
                 }
 
                 if let Some(machine) = graph.index_of_state_machine(&target.name) {
                     branch_target = HierarchicalBranchTarget::Machine(machine.try_machine_index()?);
                 } else {
-                    return Err(
-                        MissingStateMachineTargetError(target.name.clone(), paths.join()).into(),
-                    );
+                    return Err(MissingStateMachineTargetError(
+                        target.name.clone(),
+                        paths.join(),
+                    ));
                 }
             }
         }
@@ -1293,7 +1297,7 @@ impl<'a> GraphCompilationContext<'a> {
             ));
         };
 
-        return self.resolve_node_relative(route, node_index, path, output_slot);
+        self.resolve_node_relative(route, node_index, path, output_slot)
     }
 
     fn resolve_node_relative(
@@ -1371,18 +1375,18 @@ impl<'a> GraphCompilationContext<'a> {
         let mut output_slot = DEFAULT_OUPTUT_NAME;
         if let Some(index) = route.rfind('.') {
             let (owner, mut slot) = route.split_at(index);
-            assert!(slot.starts_with("."));
+            assert!(slot.starts_with('.'));
             slot = &slot[1..];
-            if !slot.contains("::") && !slot.contains("/") {
+            if !slot.contains("::") && !slot.contains('/') {
                 output_slot = slot;
                 route = owner;
             }
         }
 
-        if !route.starts_with("::") && !route.starts_with("/") {
-            if let Some((alias, _path)) = route.split_once("/") {
+        if !route.starts_with("::") && !route.starts_with('/') {
+            if let Some((alias, _path)) = route.split_once('/') {
                 if let Some(&node_index) = self.aliases.get(alias) {
-                    let route = IndexedPath::from_str(route);
+                    let route = IndexedPath::from_route(route);
 
                     if route.path.len() < 2 {
                         return Err(AnimGraphPathError::InvalidRoute(route.join()));
@@ -1552,7 +1556,7 @@ impl GraphDefinitionCompilation {
             .iter()
             .position(|x| x == resource_type)
         {
-            return Ok(index.try_resource_type()?);
+            return index.try_resource_type();
         }
 
         let index = self.builder.resource_types.len().try_resource_type()?;
@@ -1571,16 +1575,14 @@ impl GraphDefinitionCompilation {
                 Ok(NodeCompilationOutput {
                     output_type: IOType::Vector,
                     index,
-                }) => return Ok(VectorMut(VariableIndex(index))),
-                Ok(_) => return Err(AnimGraphExpressionError::ExpectedVectorRoute(route.clone())),
-                Err(inner) => return Err(AnimGraphExpressionError::InvalidVectorRoute(inner)),
+                }) => Ok(VectorMut(VariableIndex(index))),
+                Ok(_) => Err(AnimGraphExpressionError::ExpectedVectorRoute(route.clone())),
+                Err(inner) => Err(AnimGraphExpressionError::InvalidVectorRoute(inner)),
             },
             Expression::Parameter(parameter) => {
-                match self.get_or_create_parameter(&parameter.name, &IOType::Vector)? {
-                    NodeCompilationOutput { index, .. } => {
-                        return Ok(VectorMut(VariableIndex(index)));
-                    }
-                }
+                let NodeCompilationOutput { index, .. } =
+                    self.get_or_create_parameter(&parameter.name, &IOType::Vector)?;
+                Ok(VectorMut(VariableIndex(index)))
             }
             Expression::None
             | Expression::Binary(..)
@@ -1599,7 +1601,7 @@ impl GraphDefinitionCompilation {
             | Expression::Or(_)
             | Expression::Xor(_)
             | Expression::Debug { .. } => {
-                return Err(AnimGraphExpressionError::ExpectedVector(expression.clone()));
+                Err(AnimGraphExpressionError::ExpectedVector(expression.clone()))
             }
         }
     }
@@ -1615,35 +1617,29 @@ impl GraphDefinitionCompilation {
                 Value::Number(number) => {
                     match self.get_or_create_number_constant(number.clone())? {
                         Some(index) => Ok(index),
-                        None => {
-                            return Err(AnimGraphExpressionError::ExpectedNumberValue(
-                                value.clone(),
-                            ))
-                        }
+                        None => Err(AnimGraphExpressionError::ExpectedNumberValue(value.clone())),
                     }
                 }
-                _ => return Err(AnimGraphExpressionError::ExpectedNumberValue(value.clone())),
+                _ => Err(AnimGraphExpressionError::ExpectedNumberValue(value.clone())),
             },
             Expression::Route(route) => match graph.resolve_route(context_path, &route.route) {
                 Ok(NodeCompilationOutput {
                     output_type: IOType::Number,
                     index,
-                }) => return Ok(GraphNumber::Variable(VariableIndex(index))),
-                Ok(_) => return Err(AnimGraphExpressionError::ExpectedNumberRoute(route.clone())),
-                Err(inner) => return Err(AnimGraphExpressionError::InvalidNumberRoute(inner)),
+                }) => Ok(GraphNumber::Variable(VariableIndex(index))),
+                Ok(_) => Err(AnimGraphExpressionError::ExpectedNumberRoute(route.clone())),
+                Err(inner) => Err(AnimGraphExpressionError::InvalidNumberRoute(inner)),
             },
             Expression::Parameter(parameter) => {
-                match self.get_or_create_parameter(&parameter.name, &IOType::Number)? {
-                    NodeCompilationOutput { index, .. } => {
-                        return Ok(GraphNumber::Variable(VariableIndex(index)));
-                    }
-                }
+                let NodeCompilationOutput { index, .. } =
+                    self.get_or_create_parameter(&parameter.name, &IOType::Number)?;
+                Ok(GraphNumber::Variable(VariableIndex(index)))
             }
             Expression::CompilerGlobal(name) => {
                 if let Some(index) = self.global_number.get(name) {
-                    return Ok(*index);
+                    Ok(*index)
                 } else {
-                    return Err(AnimGraphExpressionError::InvalidGlobalNumber(name.clone()));
+                    Err(AnimGraphExpressionError::InvalidGlobalNumber(name.clone()))
                 }
             }
             Expression::VectorProjection(projection, expr) => {
@@ -1674,15 +1670,15 @@ impl GraphDefinitionCompilation {
                         self.builder.desc.expressions[index as usize] = GraphExpression::Expression(
                             GraphNumberExpression::Binary(op.clone(), lhs, rhs),
                         );
-                        return Ok(GraphNumber::Expression(index));
+                        Ok(GraphNumber::Expression(index))
                     }
                     (Err(err), ..) | (_, Err(err)) => {
-                        return Err(AnimGraphExpressionError::NumberExpressionError(
+                        Err(AnimGraphExpressionError::NumberExpressionError(
                             expression.clone(),
                             Box::new(err),
                         ))
                     }
-                };
+                }
             }
             Expression::None
             | Expression::ContainsExclusive(..)
@@ -1697,7 +1693,7 @@ impl GraphDefinitionCompilation {
             | Expression::Or(_)
             | Expression::Xor(_)
             | Expression::Debug { .. } => {
-                return Err(AnimGraphExpressionError::ExpectedNumber(expression.clone()));
+                Err(AnimGraphExpressionError::ExpectedNumber(expression.clone()))
             }
         }
     }
@@ -1752,30 +1748,30 @@ impl GraphDefinitionCompilation {
                     self.resolve_boolean_expression(&expr.0, graph, context_path, true),
                     self.resolve_boolean_expression(&expr.1, graph, context_path, true),
                 ) {
-                    (Ok(lhs), Ok(rhs)) => return Ok(GraphCondition::equal(lhs, rhs)),
+                    (Ok(lhs), Ok(rhs)) => Ok(GraphCondition::equal(lhs, rhs)),
                     (Err(err), ..) | (Ok(_), Err(err)) => {
-                        return Err(AnimGraphExpressionError::EqualityComparisonError(
+                        Err(AnimGraphExpressionError::EqualityComparisonError(
                             expr.0.clone(),
                             expr.1.clone(),
                             Box::new(err),
                         ))
                     }
-                };
+                }
             }
             Expression::CompareNumber(expr) => {
                 match (
                     self.resolve_number_expression(&expr.0, graph, context_path),
                     self.resolve_number_expression(&expr.1, graph, context_path),
                 ) {
-                    (Ok(lhs), Ok(rhs)) => return Ok(GraphCondition::like(lhs, rhs)),
+                    (Ok(lhs), Ok(rhs)) => Ok(GraphCondition::like(lhs, rhs)),
                     (Err(err), ..) | (_, Err(err)) => {
-                        return Err(AnimGraphExpressionError::EqualityComparisonError(
+                        Err(AnimGraphExpressionError::EqualityComparisonError(
                             expr.0.clone(),
                             expr.1.clone(),
                             Box::new(err),
                         ))
                     }
-                };
+                }
             }
             Expression::And(list) => {
                 let children = self.resolve_condition_expression_list(list, graph, context_path)?;
@@ -1812,7 +1808,7 @@ impl GraphDefinitionCompilation {
                     self.resolve_number_expression(&expr.2, graph, context_path),
                 ) {
                     (Ok(lhs), Ok(rhs), Ok(value)) => {
-                        return Ok(GraphCondition::contains_exclusive((lhs, rhs), value))
+                        Ok(GraphCondition::contains_exclusive((lhs, rhs), value))
                     }
                     (_, Err(err), _) | (Err(err), ..) | (.., Err(err)) => {
                         return Err(AnimGraphExpressionError::ContainsExclusiveError(
@@ -1820,7 +1816,7 @@ impl GraphDefinitionCompilation {
                             Box::new(err),
                         ))
                     }
-                };
+                }
             }
             Expression::ContainsInclusive(expr) => {
                 match (
@@ -1829,7 +1825,7 @@ impl GraphDefinitionCompilation {
                     self.resolve_number_expression(&expr.2, graph, context_path),
                 ) {
                     (Ok(lhs), Ok(rhs), Ok(value)) => {
-                        return Ok(GraphCondition::contains_inclusive((lhs, rhs), value))
+                        Ok(GraphCondition::contains_inclusive((lhs, rhs), value))
                     }
                     (_, Err(err), _) | (Err(err), ..) | (.., Err(err)) => {
                         return Err(AnimGraphExpressionError::ContainsInclusiveError(
@@ -1837,7 +1833,7 @@ impl GraphDefinitionCompilation {
                             Box::new(err),
                         ))
                     }
-                };
+                }
             }
 
             Expression::None
@@ -1867,41 +1863,33 @@ impl GraphDefinitionCompilation {
             Expression::Value(value) => match value {
                 Value::Null => Ok(GraphBoolean::Never),
                 Value::Bool(x) => {
-                    return if *x {
+                    if *x {
                         Ok(GraphBoolean::Always)
                     } else {
                         Ok(GraphBoolean::Never)
-                    };
+                    }
                 }
-                _ => return Err(AnimGraphExpressionError::InvalidBooleanValue(value.clone())),
+                _ => Err(AnimGraphExpressionError::InvalidBooleanValue(value.clone())),
             },
             Expression::Route(route) => match graph.resolve_route(context_path, &route.route) {
                 Ok(NodeCompilationOutput {
                     output_type: IOType::Bool,
                     index,
-                }) => {
-                    return Ok(GraphBoolean::Variable(VariableIndex(index)));
-                }
-                Ok(_) => {
-                    return Err(AnimGraphExpressionError::ExpectedBooleanRoute(
-                        route.clone(),
-                    ))
-                }
-                Err(err) => return Err(AnimGraphExpressionError::InvalidBooleanRoute(err)),
+                }) => Ok(GraphBoolean::Variable(VariableIndex(index))),
+                Ok(_) => Err(AnimGraphExpressionError::ExpectedBooleanRoute(
+                    route.clone(),
+                )),
+                Err(err) => Err(AnimGraphExpressionError::InvalidBooleanRoute(err)),
             },
             Expression::Parameter(parameter) => {
                 match self.get_or_create_parameter(&parameter.name, &IOType::Bool)? {
                     NodeCompilationOutput {
                         output_type: IOType::Bool,
                         index,
-                    } => {
-                        return Ok(GraphBoolean::Variable(VariableIndex(index)));
-                    }
-                    _ => {
-                        return Err(AnimGraphExpressionError::ExpectedBooleanParameter(
-                            parameter.name.clone(),
-                        ))
-                    }
+                    } => Ok(GraphBoolean::Variable(VariableIndex(index))),
+                    _ => Err(AnimGraphExpressionError::ExpectedBooleanParameter(
+                        parameter.name.clone(),
+                    )),
                 }
             }
             Expression::Query(Query::Event(query)) => {
@@ -1915,9 +1903,9 @@ impl GraphDefinitionCompilation {
 
                 let event = self.get_or_create_event_index(&query.event.name)?;
                 if let Some(in_state) = query_state {
-                    return Ok(GraphBoolean::QueryEvent(in_state, event));
+                    Ok(GraphBoolean::QueryEvent(in_state, event))
                 } else {
-                    return Ok(GraphBoolean::QueryEventActive(event));
+                    Ok(GraphBoolean::QueryEventActive(event))
                 }
             }
 
@@ -1940,9 +1928,9 @@ impl GraphDefinitionCompilation {
                     }
                 }
 
-                return Err(AnimGraphExpressionError::InvalidStatePath(
+                Err(AnimGraphExpressionError::InvalidStatePath(
                     expr.state.name.clone(),
-                ));
+                ))
             }
             Expression::Query(Query::StateMachine(expr)) => {
                 let query_state = match expr.query {
@@ -1963,23 +1951,21 @@ impl GraphDefinitionCompilation {
                     }
                 }
 
-                return Err(AnimGraphExpressionError::InvalidStateMachine(
+                Err(AnimGraphExpressionError::InvalidStateMachine(
                     expr.state_machine.name.clone(),
-                ));
+                ))
             }
             Expression::CompilerGlobal(name) => {
                 if let Some(index) = self.global_booleans.get(name) {
-                    return Ok(*index);
+                    Ok(*index)
                 } else {
-                    return Err(AnimGraphExpressionError::InvalidGlobalBoolean(name.clone()));
+                    Err(AnimGraphExpressionError::InvalidGlobalBoolean(name.clone()))
                 }
             }
 
-            Expression::Binary(..) | Expression::VectorProjection(..) => {
-                return Err(AnimGraphExpressionError::InvalidBooleanExpression(
-                    expression.clone(),
-                ));
-            }
+            Expression::Binary(..) | Expression::VectorProjection(..) => Err(
+                AnimGraphExpressionError::InvalidBooleanExpression(expression.clone()),
+            ),
             Expression::Not(_)
             | Expression::ContainsExclusive(..)
             | Expression::ContainsInclusive(..)
@@ -2042,11 +2028,11 @@ impl GraphDefinitionCompilation {
 
     fn get_or_create_event_index(&mut self, name: &str) -> IndexedResult<Event> {
         if let Some(event) = self.events_lookup.get(name) {
-            return Ok(event.clone());
+            return Ok(*event);
         }
 
         let event = Event(self.create_output(name, IOType::Event)?.index);
-        self.events_lookup.insert(name.to_owned(), event.clone());
+        self.events_lookup.insert(name.to_owned(), event);
         Ok(event)
     }
 
@@ -2101,7 +2087,11 @@ impl GraphDefinitionCompilation {
         }
 
         let Some(resource) = graph.graph.resources.iter().find(|x| x.name == name) else {
-            return Err(CompileError::MissingResourceReference(io_type.to_str().to_owned(), name.to_owned(), context.inner().join()))
+            return Err(CompileError::MissingResourceReference(
+                io_type.to_str().to_owned(),
+                name.to_owned(),
+                context.inner().join(),
+            ));
         };
 
         if resource.resource_type != io_type.to_str() {
@@ -2279,29 +2269,23 @@ impl GraphDefinitionCompilation {
         }
 
         match io_type {
-            IOType::Bool => {
-                return Ok(Some(NodeCompilationInput::Boolean(GraphBoolean::Variable(
-                    VariableIndex(output.index),
-                ))))
-            }
-            IOType::Number => {
-                return Ok(Some(NodeCompilationInput::Number(GraphNumber::Variable(
-                    VariableIndex(output.index),
-                ))))
-            }
-            IOType::Vector => {
-                return Ok(Some(NodeCompilationInput::Vector(VectorRef::Variable(
-                    VariableIndex(output.index),
-                ))))
-            }
-            IOType::Event => return Ok(Some(NodeCompilationInput::Event(Event(output.index)))),
-            IOType::Timer => return Ok(Some(NodeCompilationInput::Timer(Timer(output.index)))),
+            IOType::Bool => Ok(Some(NodeCompilationInput::Boolean(GraphBoolean::Variable(
+                VariableIndex(output.index),
+            )))),
+            IOType::Number => Ok(Some(NodeCompilationInput::Number(GraphNumber::Variable(
+                VariableIndex(output.index),
+            )))),
+            IOType::Vector => Ok(Some(NodeCompilationInput::Vector(VectorRef::Variable(
+                VariableIndex(output.index),
+            )))),
+            IOType::Event => Ok(Some(NodeCompilationInput::Event(Event(output.index)))),
+            IOType::Timer => Ok(Some(NodeCompilationInput::Timer(Timer(output.index)))),
             IOType::Resource(resource_type) => {
                 let type_index = self.get_or_create_resource_type(resource_type)?;
-                return Ok(Some(NodeCompilationInput::Resource {
+                Ok(Some(NodeCompilationInput::Resource {
                     type_index,
                     variable: VariableIndex(output.index),
-                }));
+                }))
             }
         }
     }
@@ -2334,10 +2318,10 @@ impl GraphDefinitionCompilation {
                 let output =
                     self.get_resource(&name, io_type, graph, &ContextPath::Path(&node.path))?;
 
-                return Ok(NodeCompilationInput::Resource {
+                Ok(NodeCompilationInput::Resource {
                     type_index,
                     variable: VariableIndex(output.index),
-                });
+                })
             }
         }
     }
@@ -2352,37 +2336,29 @@ impl GraphDefinitionCompilation {
                 continue;
             }
 
-            match inputs {
-                [(DEFAULT_INPUT_NAME, io_type)] => {
-                    let mut input = if let Some(io) = graph_node
-                        .node
-                        .input
-                        .iter()
-                        .find(|x| x.name == DEFAULT_INPUT_NAME)
-                    {
-                        self.resolve_io(
-                            io,
-                            &io_type,
-                            graph,
-                            &ContextPath::ParentOf(&graph_node.path),
-                        )?
-                    } else {
-                        None
-                    };
+            if let [(DEFAULT_INPUT_NAME, io_type)] = inputs {
+                let mut input = if let Some(io) = graph_node
+                    .node
+                    .input
+                    .iter()
+                    .find(|x| x.name == DEFAULT_INPUT_NAME)
+                {
+                    self.resolve_io(io, io_type, graph, &ContextPath::ParentOf(&graph_node.path))?
+                } else {
+                    None
+                };
 
-                    if input.is_none() {
-                        input = Some(self.create_default_input(
-                            &graph.nodes[node_index],
-                            DEFAULT_INPUT_NAME,
-                            io_type,
-                            graph,
-                        )?);
-                    }
-
-                    graph.nodes[node_index].default_input = input;
-                    continue;
+                if input.is_none() {
+                    input = Some(self.create_default_input(
+                        &graph.nodes[node_index],
+                        DEFAULT_INPUT_NAME,
+                        io_type,
+                        graph,
+                    )?);
                 }
-                _ => {}
+
+                graph.nodes[node_index].default_input = input;
+                continue;
             }
 
             let mut default_input = None;
@@ -2465,17 +2441,14 @@ impl GraphDefinitionCompilation {
                 continue;
             }
 
-            match outputs {
-                [(DEFAULT_OUPTUT_NAME, io_type)] => {
-                    let name = node.path.join();
+            if let [(DEFAULT_OUPTUT_NAME, io_type)] = outputs {
+                let name = node.path.join();
 
-                    let result = self.create_output(&name, io_type.clone())?;
-                    self.output_lookup.insert(result.clone(), name);
-                    node.default_output = Some(result);
+                let result = self.create_output(&name, io_type.clone())?;
+                self.output_lookup.insert(result.clone(), name);
+                node.default_output = Some(result);
 
-                    continue;
-                }
-                _ => {}
+                continue;
             }
 
             node.outputs.reserve(outputs.len());
@@ -2518,8 +2491,7 @@ impl GraphDefinitionCompilation {
                     return Err(CompileError::TransitionConditionError(
                         transition.path.join(),
                         err,
-                    )
-                    .into());
+                    ));
                 }
             };
 
@@ -2607,9 +2579,9 @@ impl GraphDefinitionCompilation {
     }
 }
 
-pub const BRANCH_SCOPE: &'static str = "branch";
-pub const TRANSITION_SCOPE: &'static str = "transition";
-pub const TREE_ROOT_SCOPE: &'static str = "node";
+pub const BRANCH_SCOPE: &str = "branch";
+pub const TRANSITION_SCOPE: &str = "transition";
+pub const TREE_ROOT_SCOPE: &str = "node";
 
 impl<'a> GraphCompilationContext<'a> {
     pub fn build_context(
@@ -2638,13 +2610,13 @@ impl<'a> GraphCompilationContext<'a> {
                 .insert(state_machine.name.as_str(), machine_index)
                 .is_none());
 
-            paths.add_scope(Some(machine_route_index), &state_machine.name.as_str());
+            paths.add_scope(Some(machine_route_index), state_machine.name.as_str());
 
             let first_state = states.len().try_state_index()?;
             let mut state_lookup = HashMap::with_capacity(state_machine.states.len());
             let start = branches.len();
             for (state_route_index, state) in state_machine.states.iter().enumerate() {
-                paths.add_scope(Some(state_route_index), &state.name.as_str());
+                paths.add_scope(Some(state_route_index), state.name.as_str());
 
                 let global_index = branches.len().try_branch_index()?;
                 branches.push(BranchCompilationContext {
@@ -2662,14 +2634,14 @@ impl<'a> GraphCompilationContext<'a> {
                     transitions: 0..0,
                 });
 
-                paths.remove_scope(Some(state_route_index), &state.name.as_str());
+                paths.remove_scope(Some(state_route_index), state.name.as_str());
             }
             let end = branches.len();
 
             for (state_route_index, (state, global_index)) in
                 state_machine.states.iter().zip(start..end).enumerate()
             {
-                paths.add_scope(Some(state_route_index), &state.name.as_str());
+                paths.add_scope(Some(state_route_index), state.name.as_str());
 
                 paths.add_scope(Some(0), BRANCH_SCOPE);
                 let target = build_branch_scope(
@@ -2688,7 +2660,7 @@ impl<'a> GraphCompilationContext<'a> {
                 let context = branches.get_mut(global_index).expect("Valid");
                 context.target = target;
 
-                paths.remove_scope(Some(state_route_index), &state.name.as_str());
+                paths.remove_scope(Some(state_route_index), state.name.as_str());
             }
 
             let first_transition: IndexType = transitions.len().try_transition_index()?;
@@ -2704,7 +2676,7 @@ impl<'a> GraphCompilationContext<'a> {
                     context.transitions = start..start;
                     continue;
                 }
-                paths.add_scope(Some(state_route_index), &state.name.as_str());
+                paths.add_scope(Some(state_route_index), state.name.as_str());
 
                 paths.add_scope(Some(1), TRANSITION_SCOPE);
                 for (index, transition) in state.transitions.iter().enumerate() {
@@ -2730,7 +2702,7 @@ impl<'a> GraphCompilationContext<'a> {
                             node: node_index,
                         });
                     } else {
-                        return Err(MissingTransitionTargetError(paths.join()).into());
+                        return Err(MissingTransitionTargetError(paths.join()));
                     }
 
                     paths.remove_scope(Some(index), &transition.target.name);
@@ -2739,7 +2711,7 @@ impl<'a> GraphCompilationContext<'a> {
                 context.transitions = start..end;
 
                 paths.remove_scope(Some(1), TRANSITION_SCOPE);
-                paths.remove_scope(Some(state_route_index), &state.name.as_str());
+                paths.remove_scope(Some(state_route_index), state.name.as_str());
             }
             let total_transition_range =
                 first_transition..transitions.len().try_transition_index()?;
@@ -2751,7 +2723,7 @@ impl<'a> GraphCompilationContext<'a> {
                 total_transition_range,
             });
 
-            paths.remove_scope(Some(machine_route_index), &state_machine.name.as_str());
+            paths.remove_scope(Some(machine_route_index), state_machine.name.as_str());
         }
 
         Ok(GraphCompilationContext {

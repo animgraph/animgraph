@@ -1,6 +1,6 @@
 use crate::{
-    processors::GraphNode, state_machine::NodeIndex, AnimationId, BlendContext, BoneGroupId,
-    Graph, LayerBuilder, Alpha,
+    processors::GraphNode, state_machine::NodeIndex, Alpha, AnimationId, BlendContext, BoneGroupId,
+    Graph, LayerBuilder,
 };
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
@@ -98,7 +98,7 @@ impl BlendTree {
     }
 
     pub fn get_reference_task(&mut self) -> Option<BlendSampleId> {
-        self.reference_task.clone()
+        self.reference_task
     }
 
     pub fn set_reference_task(&mut self, task: Option<BlendSampleId>) {

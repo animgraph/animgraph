@@ -108,9 +108,7 @@ pub mod compile {
 
     impl NodeCompiler for TimedEventNode {
         type Settings = TimedEventSettings;
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let timer = context.input_timer(0)?;
             let event = context.input_event(1)?;
             let condition = context.input_bool(2)?;

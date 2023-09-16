@@ -78,9 +78,7 @@ pub mod compile {
 
     impl NodeCompiler for EventEmittedNode {
         type Settings = EventEmittedSettings;
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let result = context.output_bool(0)?;
             let event = context.input_event(0)?;
             context.serialize_node(EventEmittedNode { event, result })

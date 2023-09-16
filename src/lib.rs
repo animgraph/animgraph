@@ -27,10 +27,10 @@ pub use crate::interpreter::*;
 pub use crate::layer_builder::*;
 
 pub use anyhow;
+pub use glam;
 pub use serde;
 pub use serde_derive;
 pub use serde_json;
-pub use glam;
 #[cfg(feature = "compiler")]
 pub use uuid;
 

@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
-use crate::{graph::Graph, IndexType, state_machine::VariableIndex};
+use crate::{graph::Graph, state_machine::VariableIndex, IndexType};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Resource<T: 'static> {
@@ -22,10 +22,7 @@ impl<T: 'static> Copy for Resource<T> {}
 
 impl<T: 'static> Clone for Resource<T> {
     fn clone(&self) -> Self {
-        Self {
-            variable: self.variable.clone(),
-            _phantom: self._phantom.clone(),
-        }
+        *self
     }
 }
 

@@ -87,9 +87,7 @@ pub mod compile {
     impl NodeCompiler for TransformOffsetNode {
         type Settings = TransformTargetSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let settings = context.settings::<Self::Settings>()?;
             let offset = context.input_vector(0)?;
             let result = context.output_vector(0)?;
@@ -163,7 +161,9 @@ pub mod compile {
         let mut context = DefaultRunContext::new(1.0);
         let range = 1.0..=1.5;
 
-        let mut graph = definition.clone().build_with_empty_skeleton(Arc::new(EmptyResourceProvider));
+        let mut graph = definition
+            .clone()
+            .build_with_empty_skeleton(Arc::new(EmptyResourceProvider));
         for test in [0f32, 0.99, 1.0, 1.3, 1.5, 2.0] {
             graph.reset_graph();
             context.run(&mut graph);
@@ -184,8 +184,7 @@ pub mod compile {
             );
         }
 
-        let mut graph =
-            definition.build(Arc::new(EmptyResourceProvider), Arc::new(skeleton));
+        let mut graph = definition.build(Arc::new(EmptyResourceProvider), Arc::new(skeleton));
 
         let translation = Vec3::new(0.1, 0.2, 0.3);
         for test in [0f32, 0.99, 1.0, 1.3, 1.5, 2.0] {

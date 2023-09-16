@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
-    core::{unorm_clamped, Seconds, Alpha, ALPHA_ONE},
+    core::{unorm_clamped, Alpha, Seconds, ALPHA_ONE},
     io::{NumberMut, NumberRef},
     FlowStatus, Graph, GraphNodeConstructor,
 };
@@ -20,7 +20,10 @@ impl GraphNodeConstructor for BlendInNode {
         "blend_in"
     }
 
-    fn construct_entry(self, metrics: &crate::GraphMetrics) -> anyhow::Result<crate::GraphNodeEntry> {
+    fn construct_entry(
+        self,
+        metrics: &crate::GraphMetrics,
+    ) -> anyhow::Result<crate::GraphNodeEntry> {
         metrics.validate_number_ref(&self.init, Self::identity())?;
         metrics.validate_number_ref(&self.duration, Self::identity())?;
         metrics.validate_number_mut(&self.result, Self::identity())?;
@@ -63,10 +66,10 @@ pub mod compile {
 
     use crate::{
         compiler::prelude::{
-            Extras, IOSlot, IOType, Node, NodeCompiler, NodeSerializationContext, NodeCompilationError,
-            NodeSettings, DEFAULT_OUPTUT_NAME,
+            Extras, IOSlot, IOType, Node, NodeCompilationError, NodeCompiler,
+            NodeSerializationContext, NodeSettings, DEFAULT_OUPTUT_NAME,
         },
-        core::{Seconds, Alpha},
+        core::{Alpha, Seconds},
         GraphNodeConstructor,
     };
 
@@ -98,7 +101,7 @@ pub mod compile {
     impl NodeCompiler for BlendInNode {
         type Settings = BlendInSettings;
 
-        fn build<'a>(context: &NodeSerializationContext<'a>) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let init = context.input_number(0)?;
             let duration = context.input_number(1)?;
             let result = context.output_number(0)?;

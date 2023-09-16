@@ -5,7 +5,7 @@ use crate::{
     PoseNode, PoseParent,
 };
 
-use super::{TreeNode, GraphNode, GraphVisitor};
+use super::{GraphNode, GraphVisitor, TreeNode};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConditionalTreeNode {
@@ -99,7 +99,7 @@ pub mod compile {
             Extras, IOType, Node, NodeCompilationError, NodeCompiler, NodeSerializationContext,
             NodeSettings,
         },
-        model::{IOSlot, DEFAULT_INPUT_NAME, DEFAULT_OUPTUT_NAME, NodeChildRange},
+        model::{IOSlot, NodeChildRange, DEFAULT_INPUT_NAME, DEFAULT_OUPTUT_NAME},
         processors::compile::TreeNode,
         GraphNodeConstructor, IndexType,
     };
@@ -125,7 +125,7 @@ pub mod compile {
         fn build(self) -> anyhow::Result<Extras> {
             Ok(Extras::default())
         }
-        
+
         fn child_range() -> NodeChildRange {
             NodeChildRange::UpTo(IndexType::MAX as usize)
         }
@@ -134,9 +134,7 @@ pub mod compile {
     impl NodeCompiler for ConditionalTreeNode {
         type Settings = ConditionalTreeSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             context.serialize_node(ConditionalTreeNode {
                 condition: context.input_bool(0)?,
                 result: context.output_bool(0)?,
@@ -189,7 +187,7 @@ pub mod compile {
         let mut graph = definition.build_with_empty_skeleton(Arc::new(EmptyResourceProvider));
 
         let mut context = DefaultRunContext::new(1.0);
-        
+
         context.run(&mut graph);
 
         assert!(context.tree.is_empty());
@@ -199,7 +197,9 @@ pub mod compile {
 
         context.run_without_blend(&mut graph);
         context.tree.clear();
-        context.tree.set_reference_task(Some(BlendSampleId::Task(123)));
+        context
+            .tree
+            .set_reference_task(Some(BlendSampleId::Task(123)));
         assert_eq!(
             context.tree.append(&graph, &context.layers).unwrap(),
             Some(BlendSampleId::Task(123))

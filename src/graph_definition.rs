@@ -567,7 +567,6 @@ pub enum ConditionExpression {
     ExclusiveNot(IndexType, IndexType, bool),
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NumberOperation {
@@ -583,8 +582,6 @@ pub enum NumberOperation {
 pub enum GraphNumberExpression {
     Binary(NumberOperation, GraphNumber, GraphNumber),
 }
-
-
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 #[serde(remote = "Ordering")]
@@ -647,7 +644,6 @@ pub enum GraphCondition {
     Expression(ConditionExpression),
     DebugBreak(ConditionExpression),
 }
-
 
 impl GraphCondition {
     pub const fn has_debug_break(&self) -> bool {
@@ -1010,7 +1006,7 @@ impl GraphMetrics {
                         number, context
                     )));
                 }
-            },
+            }
         }
         Ok(())
     }

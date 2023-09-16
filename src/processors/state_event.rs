@@ -81,9 +81,7 @@ pub mod compile {
 
     impl NodeCompiler for StateEventNode {
         type Settings = StateEventSettings;
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let event = context.input_event(0)?;
             let condition = context.input_bool(1)?;
             let settings = context.settings::<StateEventSettings>()?;

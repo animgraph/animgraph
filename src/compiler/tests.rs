@@ -6,7 +6,7 @@ use super::prelude::*;
 
 #[test]
 fn test_global_constant() {
-    const TEST_EVENT: &'static str = "TestEvent";
+    const TEST_EVENT: &str = "TestEvent";
 
     fn construct_data() -> AnimGraph {
         fn global_number(name: &str) -> Expression {
@@ -31,7 +31,7 @@ fn test_global_constant() {
         let mut definition = GraphDefinitionCompilation::default();
         definition.add_global_constant("ALMOST_PI", 3.0)?;
 
-        let mut context = GraphCompilationContext::build_context(&graph, &registry)?;
+        let mut context = GraphCompilationContext::build_context(graph, &registry)?;
         run_graph_definition_compilation(&mut definition, &mut context)?;
         Ok(definition.builder)
     }
@@ -56,7 +56,9 @@ fn test_global_constant() {
     let definition = deserialize_definition(serialized);
 
     // 3. Run the graph
-    let mut graph = definition.clone().build_with_empty_skeleton(Arc::new(EmptyResourceProvider));
+    let mut graph = definition
+        .clone()
+        .build_with_empty_skeleton(Arc::new(EmptyResourceProvider));
 
     let mut context = DefaultRunContext::new(1.0);
 
@@ -139,7 +141,7 @@ impl NodeSettings for MultipleOutputSettings {
 impl NodeCompiler for MultipleOutputsNode {
     type Settings = MultipleOutputSettings;
 
-    fn build<'a>(context: &NodeSerializationContext<'a>) -> Result<Value, NodeCompilationError> {
+    fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
         let first = context.input_event(0)?;
         let second = context.input_timer(1)?;
         let a = context.output_event(0)?;
@@ -165,7 +167,6 @@ fn multiple_outputs(first: impl IOSlot<Event>, second: impl IOSlot<Timer>) -> No
 #[test]
 fn test_multiple_outputs() {
     fn construct_data() -> AnimGraph {
-
         let node1 = alias(
             "node1",
             multiple_outputs(bind_parameter("some_event"), bind_parameter("some_timer")),
@@ -191,7 +192,6 @@ fn test_multiple_outputs() {
             multiple_outputs(bind_route("node4.A"), bind_route("node4.B")),
         );
 
-
         let spaghetti = endpoint(tree([node1, node2, node3, node4, node5]));
 
         let machines = [state_machine("Root", [state("StateA").with(spaghetti, [])])];
@@ -210,7 +210,7 @@ fn test_multiple_outputs() {
         let mut definition = GraphDefinitionCompilation::default();
         definition.add_global_constant("ALMOST_PI", 3.0)?;
 
-        let mut context = GraphCompilationContext::build_context(&graph, &registry)?;
+        let mut context = GraphCompilationContext::build_context(graph, &registry)?;
         run_graph_definition_compilation(&mut definition, &mut context)?;
         Ok(definition.builder)
     }

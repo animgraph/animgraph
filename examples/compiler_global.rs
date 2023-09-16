@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
         let mut definition = GraphDefinitionCompilation::default();
         definition.add_global_constant(ALMOST_PI, 3.0)?;
 
-        let mut context = GraphCompilationContext::build_context(&graph, &registry)?;
+        let mut context = GraphCompilationContext::build_context(graph, &registry)?;
         run_graph_definition_compilation(&mut definition, &mut context)?;
         Ok(definition.builder)
     }
@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
     let definition = deserialize_definition(serialized)?;
 
     perform_runtime_test(definition);
-    
+
     Ok(())
 }
 

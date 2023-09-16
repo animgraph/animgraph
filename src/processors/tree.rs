@@ -9,7 +9,7 @@ use crate::{
 
 use super::{GraphNode, GraphVisitor};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TreeNode {
     pub children: Range<IndexType>,
 }
@@ -19,17 +19,12 @@ impl GraphNodeConstructor for TreeNode {
         "tree"
     }
 
-    fn construct_entry(self, metrics: &crate::GraphMetrics) -> anyhow::Result<crate::GraphNodeEntry> {
+    fn construct_entry(
+        self,
+        metrics: &crate::GraphMetrics,
+    ) -> anyhow::Result<crate::GraphNodeEntry> {
         metrics.validate_children(&self.children, Self::identity())?;
         Ok(crate::GraphNodeEntry::PoseParent(Box::new(self)))
-    }
-}
-
-impl Default for TreeNode {
-    fn default() -> Self {
-        Self {
-            children: Default::default(),
-        }
     }
 }
 
@@ -68,7 +63,7 @@ impl PoseNode for TreeNode {
     ) -> anyhow::Result<Option<BlendSampleId>> {
         for index in self.children.clone() {
             if let Some(mut child_task) = graph.sample_pose(tasks, NodeIndex(index))? {
-                for sibling in index+1..self.children.end {
+                for sibling in index + 1..self.children.end {
                     if let Some(parent) = graph.pose_parent(NodeIndex(sibling)) {
                         child_task = parent.apply_parent(tasks, child_task, graph)?;
                     }
@@ -90,7 +85,8 @@ pub mod compile {
             Extras, IOType, Node, NodeCompilationError, NodeCompiler, NodeSerializationContext,
             NodeSettings,
         },
-        GraphNodeConstructor, IndexType, model::NodeChildRange,
+        model::NodeChildRange,
+        GraphNodeConstructor, IndexType,
     };
 
     pub use super::TreeNode;
@@ -118,15 +114,12 @@ pub mod compile {
         fn child_range() -> NodeChildRange {
             NodeChildRange::UpTo(IndexType::MAX as usize)
         }
-
     }
 
     impl NodeCompiler for TreeNode {
         type Settings = TreeSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             context.serialize_node(TreeNode {
                 children: context.children(),
             })

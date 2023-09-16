@@ -10,7 +10,7 @@ pub use bone_group::*;
 use serde::Serialize;
 pub use skeleton::*;
 
-pub trait ResourceSettings : Serialize {
+pub trait ResourceSettings: Serialize {
     fn resource_type() -> &'static str;
 
     #[cfg(feature = "compiler")]

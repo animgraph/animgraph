@@ -61,8 +61,8 @@ pub mod compile {
     impl NodeCompiler for InactiveLayerNode {
         type Settings = InactiveLayerSettings;
 
-        fn build<'a>(
-            context: &crate::compiler::prelude::NodeSerializationContext<'a>,
+        fn build(
+            context: &crate::compiler::prelude::NodeSerializationContext<'_>,
         ) -> Result<Value, crate::compiler::prelude::NodeCompilationError> {
             context.serialize_node(InactiveLayerNode)
         }

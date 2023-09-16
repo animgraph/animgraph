@@ -133,7 +133,7 @@ fn main() -> anyhow::Result<()> {
 
         println!("\n- Blend Stack:");
         context.tree.visit_root(&mut BlendStack(&resources));
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -316,7 +316,7 @@ impl GlobalResources {
                     };
 
                 RuntimeResource::AnimationClip(AnimationClip {
-                    animation: animation,
+                    animation,
                     bone_group: BoneGroupId::All,
                     looping,
                     start: Seconds(0.0),
@@ -466,11 +466,11 @@ fn serialize_skeleton() -> Value {
     .map(|(a, b)| (a.to_owned(), b.to_owned()))
     .collect();
 
-    serde_json::to_value(&SerializedResource::Skeleton(bones)).unwrap()
+    serde_json::to_value(SerializedResource::Skeleton(bones)).unwrap()
 }
 
 fn serialize_animation(id: &str) -> Value {
-    serde_json::to_value(&SerializedResource::AnimationClip(id.to_owned())).unwrap()
+    serde_json::to_value(SerializedResource::AnimationClip(id.to_owned())).unwrap()
 }
 
 fn init_res<'a>(list: impl IntoIterator<Item = &'a str>) -> Vec<ResourceContent> {
@@ -576,7 +576,7 @@ fn create_locomotion_graph() -> AnimGraph {
     let jump_layer = {
         const STATE_FALLING: &str = "Falling";
         const STATE_JUMPING: &str = "Jumping";
-        const STATE_OFF: &str = "Off";        
+        const STATE_OFF: &str = "Off";
 
         let not_grounded = bind_parameter::<bool>("grounded").not();
         let has_fallen = bind_parameter::<bool>("falling").and(not_grounded.clone());
@@ -588,8 +588,8 @@ fn create_locomotion_graph() -> AnimGraph {
                 not_grounded.transition(STATE_JUMPING, TRANSITION_DURATION),
             ]);
 
-        let is_grounded = bind_parameter::<bool>("grounded").as_expr();
-        let is_falling = bind_parameter::<bool>("falling").as_expr();
+        let is_grounded = bind_parameter::<bool>("grounded").into_expr();
+        let is_falling = bind_parameter::<bool>("falling").into_expr();
         let state_jumping = state(STATE_JUMPING)
             .with_branch(endpoint(tree([
                 animation_pose(JUMPING_CLIP),
@@ -669,7 +669,8 @@ fn create_locomotion_graph() -> AnimGraph {
                 state(STATE_OFF)
                     .with_branch(endpoint(inactive_layer()))
                     .with_transitions([
-                        bind_route::<bool>("action_active").transition(STATE_FULL, TRANSITION_DURATION),
+                        bind_route::<bool>("action_active")
+                            .transition(STATE_FULL, TRANSITION_DURATION),
                         bind_route::<bool>("upper_body_action_active")
                             .transition(STATE_UPPER, TRANSITION_DURATION),
                     ]),
@@ -851,7 +852,7 @@ fn create_action_graph() -> AnimGraph {
                     event_is(FADE_OUT_EVENT, Exited).and(event_is(SIT_EVENT, Active)),
                 )
                 .with_transitions([event_is(SIT_EVENT, Exited)
-                    .as_expr()
+                    .into_expr()
                     .transition(OFF_STATE, FADE_OUT_DURATION)]),
             state(TURN_AND_SIT_STATE)
                 .with_branch(turn_and_sit_pose)
@@ -860,10 +861,10 @@ fn create_action_graph() -> AnimGraph {
                 )
                 .with_transitions([
                     event_is(FADE_OUT_EVENT, Active)
-                        .as_expr()
+                        .into_expr()
                         .transition(OFF_STATE, FADE_OUT_DURATION),
                     event_is(SIT_EVENT, Active)
-                        .as_expr()
+                        .into_expr()
                         .transition(SITTING_STATE, TRANSITION_DURATION),
                 ]),
         ],

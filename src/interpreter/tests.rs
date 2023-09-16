@@ -26,7 +26,7 @@ fn collect_endpoints(
 
         LayerType::List => {
             let mut previous = index;
-            let mut next_child = layer.first_child.clone();
+            let mut next_child = layer.first_child;
             while let Some(index) = next_child {
                 assert!(previous < index);
 
@@ -54,7 +54,7 @@ fn collect_endpoints(
         }
         LayerType::StateMachine => {
             let mut previous = 0;
-            let mut next_child = layer.first_child.clone();
+            let mut next_child = layer.first_child;
             while let Some(index) = next_child {
                 assert!(previous < index);
 
@@ -208,18 +208,12 @@ impl TestMachineEvalutor {
             let step = runner.visitor.graph.iteration();
 
             let mut endpoints = Vec::new();
-            collect_endpoints(&runner.layers, 0, ALPHA_ONE, &mut endpoints);
+            collect_endpoints(runner.layers, 0, ALPHA_ONE, &mut endpoints);
 
             let result: Vec<_> = endpoints
                 .into_iter()
                 .map(|(index, weight)| {
-                    (
-                        self.data
-                            .node_alias(NodeIndex(index as _))
-                            .unwrap()
-                            .as_ref(),
-                        weight,
-                    )
+                    (self.data.node_alias(NodeIndex(index as _)).unwrap(), weight)
                 })
                 .collect();
             assert_eq!(
@@ -272,7 +266,7 @@ impl NodeSettings for TestNodeSettings {
 impl NodeCompiler for TestNode {
     type Settings = TestNodeSettings;
 
-    fn build<'a>(context: &NodeSerializationContext<'a>) -> Result<Value, NodeCompilationError> {
+    fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
         context.serialize_node(TestNode)
     }
 }
@@ -335,7 +329,7 @@ impl NodeSettings for FixedTransitionSettings {
 impl NodeCompiler for FixedTransitionNode {
     type Settings = FixedTransitionSettings;
 
-    fn build<'a>(context: &NodeSerializationContext<'a>) -> Result<Value, NodeCompilationError> {
+    fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
         let progress = context.output_number(0)?;
         let settings = context.settings::<FixedTransitionSettings>()?;
         context.serialize_node(FixedTransitionNode {

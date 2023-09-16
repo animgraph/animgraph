@@ -74,9 +74,7 @@ pub mod compile {
     impl NodeCompiler for ReferencePoseNode {
         type Settings = ReferencePoseSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             context.serialize_node(ReferencePoseNode)
         }
     }
@@ -97,7 +95,7 @@ pub mod compile {
                 state("Reference").with(
                     endpoint(reference_pose()),
                     [bind_parameter::<bool>("a")
-                        .as_expr()
+                        .into_expr()
                         .immediate_transition("Target")],
                 ),
                 state("Target"),
@@ -177,9 +175,7 @@ pub mod compile {
             SimpleResourceProvider::new_with_map(
                 &definition,
                 AnimationClip::default(),
-                |_resource_type, _content| {
-                    Ok(AnimationClip::default())
-                },
+                |_resource_type, _content| Ok(AnimationClip::default()),
             )
             .expect("Valid definition resources"),
         );

@@ -12,10 +12,10 @@ use crate::{
     state_machine::{
         ConstantIndex, HierarchicalTransition, MachineIndex, NodeIndex, StateIndex, VariableIndex,
     },
-    unorm_clamped, BooleanVec, FlowState, GraphCondition, GraphDefinition, GraphExpression,
-    GraphNodeEntry, GraphResourceProvider, GraphResourceRef, Id, IndexType, InterpreterContext,
-    GraphNumberExpression, NumberOperation, NumberRange, OptionalIndexType, Projection, SampleTimer,
-    Seconds, Skeleton, Transform, Alpha, ALPHA_ONE, ALPHA_ZERO,
+    unorm_clamped, Alpha, BooleanVec, FlowState, GraphCondition, GraphDefinition, GraphExpression,
+    GraphNodeEntry, GraphNumberExpression, GraphResourceProvider, GraphResourceRef, Id, IndexType,
+    InterpreterContext, NumberOperation, NumberRange, OptionalIndexType, Projection, SampleTimer,
+    Seconds, Skeleton, Transform, ALPHA_ONE, ALPHA_ZERO,
 };
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -258,7 +258,7 @@ impl Graph {
 
         active_machine_states.fill(Default::default());
         state_transition.fill(Default::default());
-        resource_provider.initialize(resources, &definition);
+        resource_provider.initialize(resources, definition);
         states.fill(FlowState::Exited);
         events.fill(FlowState::Exited);
         booleans.fill(false);
@@ -270,7 +270,7 @@ impl Graph {
         let _ = events_hook;
         let _ = skeleton;
 
-        Arc::clone(&definition).reset_parameters(self);
+        Arc::clone(definition).reset_parameters(self);
     }
 
     pub fn resources(&self) -> &Arc<dyn GraphResourceProvider> {
@@ -292,7 +292,7 @@ impl Graph {
     ) {
         self.root_to_world = root_to_world.clone();
         self.pose.clear();
-        self.pose.extend(bone_to_root.into_iter());
+        self.pose.extend(bone_to_root);
     }
 
     pub fn get_root_to_world(&self) -> &Transform {
@@ -394,7 +394,7 @@ impl Graph {
             GraphNumber::Projection(projection, index) => {
                 projection.character_projected(self.get_vec3(index)) as f64
             }
-            GraphNumber::Constant(index) => self.definition.get_constant_number(index) as f64,
+            GraphNumber::Constant(index) => self.definition.get_constant_number(index),
             GraphNumber::Variable(index) => self.get_variable_number(index) as f64,
             GraphNumber::Expression(index) => {
                 assert!(index as usize > max_index, "Recursive number expression.");
@@ -428,7 +428,7 @@ impl Graph {
             GraphNumber::Projection(projection, index) => {
                 projection.character_projected(self.get_vec3(index)) as f64
             }
-            GraphNumber::Constant(index) => self.definition.get_constant_number(index) as f64,
+            GraphNumber::Constant(index) => self.definition.get_constant_number(index),
             GraphNumber::Variable(index) => self.get_variable_number(index) as f64,
             GraphNumber::Expression(index) => {
                 let expressions = &self.definition().desc().expressions;
@@ -601,49 +601,47 @@ impl Graph {
     ) -> bool {
         use crate::ConditionExpression::*;
 
-        match condition.expression() {
-            &Never => false,
-            &Always => true,
-            &UnaryTrue(value) => self.get_bool(value),
-            &UnaryFalse(value) => !self.get_bool(value),
+        match *condition.expression() {
+            Never => false,
+            Always => true,
+            UnaryTrue(value) => self.get_bool(value),
+            UnaryFalse(value) => !self.get_bool(value),
 
-            &Equal(a, b) => self.get_bool(a) == self.get_bool(b),
-            &NotEqual(a, b) => self.get_bool(a) != self.get_bool(b),
+            Equal(a, b) => self.get_bool(a) == self.get_bool(b),
+            NotEqual(a, b) => self.get_bool(a) != self.get_bool(b),
 
-            &Like(a, b) => (self.get_number(a) - self.get_number(b)).abs() < 1e-6,
-            &NotLike(a, b) => (self.get_number(a) - self.get_number(b)).abs() >= 1e-6,
+            Like(a, b) => (self.get_number(a) - self.get_number(b)).abs() < 1e-6,
+            NotLike(a, b) => (self.get_number(a) - self.get_number(b)).abs() >= 1e-6,
 
-            &Contains(NumberRange::Exclusive(a, b), v) => {
+            Contains(NumberRange::Exclusive(a, b), v) => {
                 let x = self.get_number(v);
                 let range = self.get_number(a)..self.get_number(b);
                 range.contains(&x)
             }
-            &Contains(NumberRange::Inclusive(a, b), v) => {
+            Contains(NumberRange::Inclusive(a, b), v) => {
                 let x = self.get_number(v);
                 let range = self.get_number(a)..=self.get_number(b);
                 range.contains(&x)
             }
-            &NotContains(NumberRange::Exclusive(a, b), v) => {
+            NotContains(NumberRange::Exclusive(a, b), v) => {
                 let x = self.get_number(v);
                 let range = self.get_number(a)..self.get_number(b);
                 !range.contains(&x)
             }
-            &NotContains(NumberRange::Inclusive(a, b), v) => {
+            NotContains(NumberRange::Inclusive(a, b), v) => {
                 let x = self.get_number(v);
                 let range = self.get_number(a)..=self.get_number(b);
                 !range.contains(&x)
             }
-            &Ordering(order, a, b) => match self.get_number(a).partial_cmp(&self.get_number(b)) {
+            Ordering(order, a, b) => match self.get_number(a).partial_cmp(&self.get_number(b)) {
                 Some(ordering) => order == ordering,
                 None => false,
             },
-            &NotOrdering(order, a, b) => {
-                match self.get_number(a).partial_cmp(&self.get_number(b)) {
-                    Some(ordering) => order != ordering,
-                    None => false,
-                }
-            }
-            &AllOf(a, b, c) => {
+            NotOrdering(order, a, b) => match self.get_number(a).partial_cmp(&self.get_number(b)) {
+                Some(ordering) => order != ordering,
+                None => false,
+            },
+            AllOf(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 c == 'condition: {
                     for index in a..b {
@@ -654,7 +652,7 @@ impl Graph {
                     true
                 }
             }
-            &NoneOf(a, b, c) => {
+            NoneOf(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 c == 'condition: {
                     for index in a..b {
@@ -665,7 +663,7 @@ impl Graph {
                     true
                 }
             }
-            &AnyTrue(a, b, c) => {
+            AnyTrue(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 c == 'condition: {
                     for index in a..b {
@@ -676,7 +674,7 @@ impl Graph {
                     false
                 }
             }
-            &AnyFalse(a, b, c) => {
+            AnyFalse(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 c == 'condition: {
                     for index in a..b {
@@ -687,7 +685,7 @@ impl Graph {
                     false
                 }
             }
-            &ExclusiveOr(a, b, c) => {
+            ExclusiveOr(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 let mut result = false;
                 c == 'condition: {
@@ -701,7 +699,7 @@ impl Graph {
                     result
                 }
             }
-            &ExclusiveNot(a, b, c) => {
+            ExclusiveNot(a, b, c) => {
                 assert!(sub_condition_max <= a as _, "recursive condition");
                 let mut result = false;
                 c == 'condition: {
@@ -734,8 +732,10 @@ impl Graph {
         assert!(!states.is_empty(), "Machine has states");
 
         let mut initial_state = states.start.into();
-        let mut ctx = InterpreterContext::default();
-        ctx.machine = machine;
+        let mut ctx = InterpreterContext {
+            machine,
+            ..Default::default()
+        };
         for state in states {
             let state = state.into();
             if let Some(condition) = self.definition.get_state_global_condition(state) {
@@ -784,7 +784,7 @@ impl Graph {
         assert!(origin.next.is_none());
         assert!(origin.node.is_none());
         origin.next = Some(transition.target);
-        origin.node = transition.node.clone();
+        origin.node = transition.node;
 
         let target = self
             .state_transition
@@ -833,7 +833,7 @@ impl Graph {
             active.reset_start();
         }
 
-        return result;
+        result
     }
 
     pub(crate) fn get_completed_transition(

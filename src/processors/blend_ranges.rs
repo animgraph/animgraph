@@ -168,9 +168,7 @@ pub mod compile {
     impl NodeCompiler for BlendRangeNode {
         type Settings = BlendRangeSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let input = context.input_number(0)?;
 
             let settings = context.settings::<BlendRangeSettings>()?;

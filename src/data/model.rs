@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     io::{Event, Resource, Timer, VectorRef},
-    FromFloatUnchecked, NumberOperation, Projection, ResourceSettings, SampleTimer, Seconds, Alpha,
+    Alpha, FromFloatUnchecked, NumberOperation, Projection, ResourceSettings, SampleTimer, Seconds,
 };
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -231,8 +231,8 @@ pub struct IO {
     pub extras: Extras,
 }
 
-pub const DEFAULT_INPUT_NAME: &'static str = "";
-pub const DEFAULT_OUPTUT_NAME: &'static str = "";
+pub const DEFAULT_INPUT_NAME: &str = "";
+pub const DEFAULT_OUPTUT_NAME: &str = "";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
@@ -375,36 +375,34 @@ impl UuidContext {
     fn check_event(&mut self, target: &mut UuidTarget) {
         if target.uuid.is_nil() {
             if let Some(uuid) = self.events.get(&target.name) {
-                target.uuid = uuid.clone();
+                target.uuid = *uuid;
             } else {
                 target.uuid = Uuid::new_v4();
             }
         }
-        self.events.insert(target.name.clone(), target.uuid.clone());
+        self.events.insert(target.name.clone(), target.uuid);
     }
 
     fn check_parameter(&mut self, target: &mut UuidTarget) {
         if target.uuid.is_nil() {
             if let Some(uuid) = self.parameters.get(&target.name) {
-                target.uuid = uuid.clone();
+                target.uuid = *uuid;
             } else {
                 target.uuid = Uuid::new_v4();
             }
         }
-        self.parameters
-            .insert(target.name.clone(), target.uuid.clone());
+        self.parameters.insert(target.name.clone(), target.uuid);
     }
 
     fn check_resource(&mut self, target: &mut UuidTarget) {
         if target.uuid.is_nil() {
             if let Some(uuid) = self.resources.get(&target.name) {
-                target.uuid = uuid.clone();
+                target.uuid = *uuid;
             } else {
                 target.uuid = Uuid::new_v4();
             }
         }
-        self.resources
-            .insert(target.name.clone(), target.uuid.clone());
+        self.resources.insert(target.name.clone(), target.uuid);
     }
 }
 
@@ -422,7 +420,7 @@ impl AnimGraph {
             check_id(&mut parameter.id);
             context
                 .parameters
-                .insert(parameter.name.clone(), parameter.id.clone());
+                .insert(parameter.name.clone(), parameter.id);
 
             match &mut parameter.initial {
                 InitialParameterValue::Bool(_) => {}
@@ -435,9 +433,7 @@ impl AnimGraph {
 
         for resource in self.resources.iter_mut() {
             check_id(&mut resource.id);
-            context
-                .resources
-                .insert(resource.name.clone(), resource.id.clone());
+            context.resources.insert(resource.name.clone(), resource.id);
         }
 
         for set in self.resource_sets.iter_mut() {
@@ -445,7 +441,7 @@ impl AnimGraph {
 
             for parameter in set.parameters.iter_mut() {
                 if let Some(uuid) = context.parameters.get(&parameter.name) {
-                    parameter.id = uuid.clone();
+                    parameter.id = *uuid;
                 } else {
                     check_id(&mut parameter.id);
                 }
@@ -461,7 +457,7 @@ impl AnimGraph {
 
             for resource in set.resources.iter_mut() {
                 if let Some(uuid) = context.resources.get(&resource.name) {
-                    resource.id = uuid.clone();
+                    resource.id = *uuid;
                 } else {
                     check_id(&mut resource.id);
                 }
@@ -546,16 +542,14 @@ impl AnimGraph {
 
         for machine in self.state_machines.iter_mut() {
             check_id(&mut machine.id);
-            context
-                .machines
-                .insert(machine.name.clone(), machine.id.clone());
+            context.machines.insert(machine.name.clone(), machine.id);
         }
 
         for machine in self.state_machines.iter_mut() {
             context.states.clear();
             for state in machine.states.iter_mut() {
                 check_id(&mut state.id);
-                context.states.insert(state.name.clone(), state.id.clone());
+                context.states.insert(state.name.clone(), state.id);
             }
 
             for state in machine.states.iter_mut() {
@@ -829,10 +823,7 @@ impl Transition {
 
 impl Expression {
     pub fn is_none(&self) -> bool {
-        match self {
-            Self::None => true,
-            _ => false,
-        }
+        matches!(self, Self::None)
     }
 
     pub fn visit(&self, visitor: &mut impl FnMut(&Expression)) {
@@ -971,17 +962,11 @@ impl IOSettings {
     }
 
     pub fn is_route(&self) -> bool {
-        match self {
-            Self::Route(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Route(_))
     }
 
     pub fn is_expression(&self) -> bool {
-        match self {
-            Self::Expression(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Expression(_))
     }
 
     pub fn from_f32(value: f32) -> Self {
@@ -989,7 +974,7 @@ impl IOSettings {
             return Self::Empty;
         }
 
-        if let Some(value) = Number::from_f64(value as _).map(|x| Value::Number(x)) {
+        if let Some(value) = Number::from_f64(value as _).map(Value::Number) {
             Self::Value(IOValueSettings {
                 value,
                 ..Default::default()
@@ -1004,7 +989,7 @@ impl IOSettings {
             return Self::Empty;
         }
 
-        if let Some(value) = Number::from_f64(value as _).map(|x| Value::Number(x)) {
+        if let Some(value) = Number::from_f64(value as _).map(Value::Number) {
             Self::Value(IOValueSettings {
                 value,
                 ..Default::default()
@@ -1016,7 +1001,7 @@ impl IOSettings {
 
     pub fn from_bool(value: bool) -> Self {
         if value == bool::default() {
-            return Self::Empty;
+            Self::Empty
         } else {
             Self::Value(IOValueSettings {
                 value: Value::Bool(value),
@@ -1093,7 +1078,7 @@ impl IOSettings {
 
     pub fn from_route(name: String) -> Self {
         Self::Route(IORouteSettings {
-            route: name.into(),
+            route: name,
             ..Default::default()
         })
     }
@@ -1113,8 +1098,8 @@ impl IOSettings {
     }
 }
 
+#[allow(clippy::should_implement_trait)]
 impl Expression {
-    #[must_use]
     pub fn debug(self, trigger: Value) -> Self {
         Self::Debug {
             trigger,
@@ -1122,67 +1107,54 @@ impl Expression {
         }
     }
 
-    #[must_use]
     pub fn not(self) -> Self {
         Self::Not(Box::new(self))
     }
 
-    #[must_use]
     pub fn compare_boolean(self, other: impl Into<Self>) -> Self {
         Self::CompareBoolean(Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn compare_number(self, other: impl Into<Self>) -> Self {
         Self::CompareNumber(Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn lt(self, other: impl Into<Self>) -> Self {
         Self::Less(Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn ge(self, other: impl Into<Self>) -> Self {
         self.lt(other).not()
     }
 
-    #[must_use]
     pub fn gt(self, other: impl Into<Self>) -> Self {
         Self::Greater(Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn le(self, other: impl Into<Self>) -> Self {
         self.gt(other).not()
     }
 
-    #[must_use]
     pub fn add(self, other: impl Into<Self>) -> Self {
         Self::Binary(NumberOperation::Add, Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn subtract(self, other: impl Into<Self>) -> Self {
         Self::Binary(NumberOperation::Subtract, Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn divide(self, other: impl Into<Self>) -> Self {
         Self::Binary(NumberOperation::Divide, Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn modulus(self, other: impl Into<Self>) -> Self {
         Self::Binary(NumberOperation::Modulus, Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn multiply(self, other: impl Into<Self>) -> Self {
         Self::Binary(NumberOperation::Multiply, Box::new((self, other.into())))
     }
 
-    #[must_use]
     pub fn or(self, other: impl Into<Self>) -> Self {
         match (self, other.into()) {
             (Self::Or(x), Self::Or(y)) => Self::Or([x, y].concat()),
@@ -1198,7 +1170,6 @@ impl Expression {
         }
     }
 
-    #[must_use]
     pub fn xor(self, other: impl Into<Self>) -> Self {
         match (self, other.into()) {
             (Self::Xor(x), Self::Xor(y)) => Self::Xor([x, y].concat()),
@@ -1214,7 +1185,6 @@ impl Expression {
         }
     }
 
-    #[must_use]
     pub fn and(self, other: impl Into<Self>) -> Self {
         match (self, other.into()) {
             (Self::And(x), Self::And(y)) => Self::And([x, y].concat()),
@@ -1250,38 +1220,38 @@ impl Expression {
 }
 
 pub trait BooleanExpression: Sized + Into<Expression> {
-    fn as_expr(self) -> Expression {
+    fn into_expr(self) -> Expression {
         self.into()
     }
 
     fn not(self) -> Expression {
-        self.as_expr().not()
+        self.into_expr().not()
     }
 
     fn equals(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().compare_boolean(other)
+        self.into_expr().compare_boolean(other)
     }
 
     fn not_equal(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().compare_boolean(other).not()
+        self.into_expr().compare_boolean(other).not()
     }
 
     fn or(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().or(other)
+        self.into_expr().or(other)
     }
 
     fn xor(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().xor(other)
+        self.into_expr().xor(other)
     }
 
     fn and(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().and(other)
+        self.into_expr().and(other)
     }
 
     fn transition(self, target: &str, duration: Seconds) -> Transition {
         Transition {
             target: target.into(),
-            condition: self.as_expr(),
+            condition: self.into_expr(),
             ..Default::default()
         }
         .with_duration(duration)
@@ -1289,52 +1259,52 @@ pub trait BooleanExpression: Sized + Into<Expression> {
 }
 
 pub trait NumberExpression: Sized + Into<Expression> {
-    fn as_expr(self) -> Expression {
+    fn into_expr(self) -> Expression {
         self.into()
     }
 
     fn equals(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().compare_number(other)
+        self.into_expr().compare_number(other)
     }
 
     fn not_equal(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().compare_number(other).not()
+        self.into_expr().compare_number(other).not()
     }
 
     fn lt(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().lt(other)
+        self.into_expr().lt(other)
     }
 
     fn ge(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().ge(other)
+        self.into_expr().ge(other)
     }
 
     fn gt(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().gt(other)
+        self.into_expr().gt(other)
     }
 
     fn le(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().le(other)
+        self.into_expr().le(other)
     }
 
     fn add(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().add(other)
+        self.into_expr().add(other)
     }
 
     fn subtract(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().subtract(other)
+        self.into_expr().subtract(other)
     }
 
     fn multiply(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().multiply(other)
+        self.into_expr().multiply(other)
     }
 
     fn divide(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().divide(other)
+        self.into_expr().divide(other)
     }
 
     fn modulus(self, other: impl Into<Expression>) -> Expression {
-        self.as_expr().modulus(other)
+        self.into_expr().modulus(other)
     }
 }
 
@@ -1462,10 +1432,7 @@ pub enum IOType {
 
 impl IOType {
     pub fn is_number_type(&self) -> bool {
-        match self {
-            Self::Number => true,
-            _ => false,
-        }
+        matches!(self, Self::Number)
     }
 
     pub fn to_str(&self) -> &'static str {
@@ -1518,79 +1485,79 @@ pub trait IOSlot<T> {
 
 impl<T: IOBuilder> IOSlot<T> for T {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl<T: FromFloatUnchecked> IOSlot<T> for BindRoute<T> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl<T: FromFloatUnchecked> IOSlot<T> for BindParameter<T> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<bool> for BindRoute<bool> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<bool> for BindParameter<bool> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<[f32; 3]> for BindRoute<[f32; 3]> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<[f32; 3]> for BindParameter<[f32; 3]> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<Event> for BindRoute<Event> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<Event> for BindParameter<Event> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<Timer> for BindRoute<Timer> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<Timer> for BindParameter<Timer> {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<bool> for Query {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
 impl IOSlot<bool> for Expression {
     fn into_slot(self, name: &str) -> IO {
-        self.as_io(name)
+        self.into_io(name)
     }
 }
 
@@ -1631,29 +1598,29 @@ impl<T: ResourceSettings> IOSlot<Resource<T>> for String {
 }
 
 pub trait IOBuilder {
-    fn as_io(self, name: &str) -> IO;
+    fn into_io(self, name: &str) -> IO;
 }
 
 impl<T: FromFloatUnchecked> IOBuilder for T {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_f32(self.into_f32()))
     }
 }
 
 impl IOBuilder for bool {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_bool(self))
     }
 }
 
 impl IOBuilder for Value {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_value(self))
     }
 }
 
 impl IOBuilder for [f32; 3] {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(
             name,
             IOSettings::from_value(serde_json::to_value(self).expect("Valid")),
@@ -1662,67 +1629,67 @@ impl IOBuilder for [f32; 3] {
 }
 
 impl IOBuilder for SampleTimer {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_timer(self))
     }
 }
 
 impl<T: IOBuilder> IOBuilder for BindRoute<T> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_route(self.0))
     }
 }
 
 impl IOBuilder for BindRoute<Timer> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_route(self.0))
     }
 }
 
 impl IOBuilder for BindRoute<VectorRef> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_route(self.0))
     }
 }
 
 impl IOBuilder for BindRoute<Event> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_route(self.0))
     }
 }
 
 impl<T: IOBuilder> IOBuilder for BindParameter<T> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_parameter(self.0))
     }
 }
 
 impl IOBuilder for BindParameter<Event> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_parameter(self.0))
     }
 }
 
 impl IOBuilder for BindParameter<VectorRef> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_parameter(self.0))
     }
 }
 
 impl IOBuilder for BindParameter<Timer> {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_parameter(self.0))
     }
 }
 
 impl IOBuilder for Expression {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_expression(self))
     }
 }
 
 impl IOBuilder for Query {
-    fn as_io(self, name: &str) -> IO {
+    fn into_io(self, name: &str) -> IO {
         IO::new(name, IOSettings::from_expression(self.into()))
     }
 }
@@ -1730,7 +1697,7 @@ impl IOBuilder for Query {
 impl<T: FromFloatUnchecked> From<T> for Expression {
     fn from(value: T) -> Self {
         let x: f32 = value.into_f32();
-        if let Some(value) = Number::from_f64(x as f64).map(|n| Value::Number(n)) {
+        if let Some(value) = Number::from_f64(x as f64).map(Value::Number) {
             Self::Value(value)
         } else {
             Self::None

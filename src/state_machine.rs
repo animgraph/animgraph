@@ -4,8 +4,8 @@ use serde_derive::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    io::NumberRef, ConditionExpression, GraphCondition, GraphExpression, GraphMetrics,
-    GraphReferenceError, IndexType, Seconds, Alpha,
+    io::NumberRef, Alpha, ConditionExpression, GraphCondition, GraphExpression, GraphMetrics,
+    GraphReferenceError, IndexType, Seconds,
 };
 
 pub type StateOffset = IndexType;
@@ -274,7 +274,7 @@ impl HierarchicalStateMachine {
         }
 
         for HierarchicalBranch { node, target } in branches.iter() {
-            metrics.validate_node_index(node.clone(), "in branch")?;
+            metrics.validate_node_index(*node, "in branch")?;
 
             match target {
                 HierarchicalBranchTarget::Endpoint => {}
@@ -407,7 +407,7 @@ impl HierarchicalStateMachine {
     fn validate_branches(
         &self,
         state_machine: MachineIndex,
-        state: StateIndex,
+        _state: StateIndex,
         ip: IndexType,
     ) -> Result<(), StateMachineValidationError> {
         let HierarchicalBranch { node: _, target } = &self.branches[ip as usize];
@@ -419,7 +419,7 @@ impl HierarchicalStateMachine {
                     return Err(StateMachineValidationError::PreprocessBranchBackwardsReferencing);
                 }
 
-                return self.validate_branches(state_machine, state, index);
+                return self.validate_branches(state_machine, _state, index);
             }
             HierarchicalBranchTarget::Machine(submachine) => {
                 if submachine.0 <= state_machine.0 {
@@ -442,7 +442,7 @@ impl HierarchicalStateMachine {
                 }
 
                 for index in start..start + count as IndexType {
-                    self.validate_branches(state_machine, state, index)?;
+                    self.validate_branches(state_machine, _state, index)?;
                 }
             }
         }
@@ -527,7 +527,6 @@ impl HierarchicalStateMachine {
     pub fn total_subconditions(&self) -> usize {
         self.conditions.len()
     }
-
 
     pub fn total_expressions(&self) -> usize {
         self.expressions.len()

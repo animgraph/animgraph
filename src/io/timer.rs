@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
-    core::{SampleTimer, Seconds, Alpha},
+    core::{Alpha, SampleTimer, Seconds},
     Graph, IndexType,
 };
 

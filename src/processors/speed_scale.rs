@@ -1,6 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{io::NumberRef, GraphNodeConstructor, Alpha};
+use crate::{io::NumberRef, Alpha, GraphNodeConstructor};
 
 use super::{GraphNode, GraphVisitor};
 
@@ -43,7 +43,7 @@ pub mod compile {
             Extras, IOSlot, IOType, Node, NodeCompilationError, NodeCompiler,
             NodeSerializationContext, NodeSettings,
         },
-        GraphNodeConstructor, Alpha,
+        Alpha, GraphNodeConstructor,
     };
 
     pub use super::SpeedScaleNode;
@@ -73,9 +73,7 @@ pub mod compile {
     impl NodeCompiler for SpeedScaleNode {
         type Settings = SpeedScaleSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let scale = context.input_number(0)?;
             let blend = context.input_number(1)?;
 

@@ -1,4 +1,4 @@
-use std::{error::Error};
+use std::error::Error;
 
 use crate::{
     core::{Alpha, ALPHA_ONE, ALPHA_ZERO},
@@ -75,10 +75,12 @@ impl LayerBuilder {
         layer_type: LayerType,
         node: Option<NodeIndex>,
     ) -> usize {
-        let mut layer = Layer::default();
-        layer.context = context.clone();
-        layer.layer_type = layer_type;
-        layer.node = node;
+        let layer = Layer {
+            context: context.clone(),
+            layer_type,
+            node,
+            ..Layer::default()
+        };
         let index = self.layers.len();
 
         if self.layers.is_empty() {
@@ -100,11 +102,11 @@ impl LayerBuilder {
         }
 
         match layer_type {
-            LayerType::Endpoint => return self.layer_pointer,
+            LayerType::Endpoint => self.layer_pointer,
             LayerType::List | LayerType::StateMachine => {
                 let parent = self.layer_pointer;
                 self.layer_pointer = index;
-                return parent;
+                parent
             }
         }
     }
@@ -145,7 +147,7 @@ impl LayerBuilder {
             }
             LayerType::List => {
                 let mut previous = 0;
-                let mut next = layer.first_child.clone();
+                let mut next = layer.first_child;
                 let mut source = None;
                 while let Some(index) = next {
                     assert!(previous < index);
@@ -156,7 +158,7 @@ impl LayerBuilder {
 
                     if child.layer_weight().is_nearly_zero() {
                         previous = index;
-                        next = child.next_sibling;    
+                        next = child.next_sibling;
                         continue;
                     }
 
@@ -177,7 +179,7 @@ impl LayerBuilder {
 
             LayerType::StateMachine => {
                 let mut previous = 0;
-                let mut next = layer.first_child.clone();
+                let mut next = layer.first_child;
                 let mut source = None;
                 while let Some(index) = next {
                     assert!(previous < index);
@@ -188,7 +190,7 @@ impl LayerBuilder {
 
                     if child.transition_weight().is_nearly_zero() && source.is_some() {
                         previous = index;
-                        next = child.next_sibling;    
+                        next = child.next_sibling;
                         continue;
                     }
 

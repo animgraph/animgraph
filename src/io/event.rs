@@ -1,4 +1,4 @@
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{processors::GraphVisitor, FlowState, Graph, IndexType};
 
@@ -56,11 +56,4 @@ impl Event {
             visitor.emit_event(*self);
         }
     }
-}
-
-
-
-#[cfg(feature = "compiler")]
-pub mod compile {
-    
 }

@@ -55,12 +55,12 @@ impl GraphDefinitionCompilation {
         graph: &AnimGraph,
         registry: &NodeCompilationRegistry,
     ) -> Result<Box<GraphDefinitionCompilation>, CompileError> {
-        let mut definition = Box::new(GraphDefinitionCompilation::default());
+        let mut definition = Box::<GraphDefinitionCompilation>::default();
         definition
             .global_number
             .insert("graph_iteration".to_owned(), GraphNumber::Iteration);
 
-        let mut context = GraphCompilationContext::build_context(&graph, &registry)?;
+        let mut context = GraphCompilationContext::build_context(graph, registry)?;
         run_graph_definition_compilation(&mut definition, &mut context)?;
 
         Ok(definition)
@@ -98,7 +98,7 @@ pub struct NodeRoute<'a> {
     pub node: &'a crate::model::Node,
 }
 
-pub fn compute_node_routes<'a>(graph: &'a AnimGraph) -> Vec<NodeRoute<'a>> {
+pub fn compute_node_routes(graph: &AnimGraph) -> Vec<NodeRoute<'_>> {
     use crate::model::*;
 
     fn visit_node<'a>(
@@ -262,9 +262,9 @@ fn resolve_root_path<'a>(
         }
 
         if let Some(node) = branch.node.as_ref() {
-            return Ok(node);
+            Ok(node)
         } else {
-            return Err(NodeRouteError::InvalidRoute(route.join()));
+            Err(NodeRouteError::InvalidRoute(route.join()))
         }
     } else if scope_index == Some(1)
         || (scope_index.is_none() && state_scope == context::TRANSITION_SCOPE)
@@ -342,18 +342,18 @@ fn resolve_route<'a>(
     let mut output_slot = DEFAULT_OUPTUT_NAME;
     if let Some(index) = route.rfind('.') {
         let (owner, mut slot) = route.split_at(index);
-        assert!(slot.starts_with("."));
+        assert!(slot.starts_with('.'));
         slot = &slot[1..];
-        if !slot.contains("::") && !slot.contains("/") {
+        if !slot.contains("::") && !slot.contains('/') {
             output_slot = slot;
             route = owner;
         }
     }
 
-    if !route.starts_with("::") && !route.starts_with("/") {
-        if let Some((alias, _path)) = route.split_once("/") {
+    if !route.starts_with("::") && !route.starts_with('/') {
+        if let Some((alias, _path)) = route.split_once('/') {
             if let Some(&node) = aliases.get(alias) {
-                let indexed_path = IndexedPath::from_str(route);
+                let indexed_path = IndexedPath::from_route(route);
 
                 if indexed_path.path.len() < 2 {
                     return Err(NodeRouteError::InvalidRoute(route.to_owned()));
@@ -377,7 +377,7 @@ fn resolve_route<'a>(
     }
     path = &path[1..];
 
-    return Ok((resolve_node_relative(route, node, path)?, output_slot));
+    Ok((resolve_node_relative(route, node, path)?, output_slot))
 }
 
 fn visit_expr_routes_mut(
@@ -385,9 +385,10 @@ fn visit_expr_routes_mut(
     visitor: &mut impl FnMut(&mut crate::model::IORouteSettings),
 ) {
     use crate::model::Expression::*;
-    expr.visit_mut(&mut |e| match e {
-        Route(route) => visitor(route),
-        _ => {}
+    expr.visit_mut(&mut |e| {
+        if let Route(route) = e {
+            visitor(route)
+        }
     });
 }
 
@@ -395,9 +396,10 @@ pub fn resolve_routes(graph: &mut AnimGraph) -> Result<(), Vec<String>> {
     fn visit_expr_routes(expr: &crate::model::Expression, visitor: &mut impl FnMut(&String)) {
         use crate::model::Expression::*;
 
-        expr.visit(&mut |e| match e {
-            Route(route) => visitor(&route.route),
-            _ => {}
+        expr.visit(&mut |e| {
+            if let Route(route) = e {
+                visitor(&route.route)
+            }
         });
     }
 
@@ -624,7 +626,7 @@ pub fn serialize_routes(graph: &mut AnimGraph) {
     use crate::model::{IORouteSettings, IOSettings};
     let mut visit_route = |route: &mut IORouteSettings| {
         if let Some(target) = lookup.get(&route.target.uuid) {
-            assert!(target.ends_with("/") == false);
+            assert!(!target.ends_with('/'));
             if route.target.name.is_empty() {
                 route.route = target.clone();
             } else {

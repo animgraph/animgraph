@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::core::{Seconds, Alpha, ALPHA_ONE, ALPHA_ZERO};
+use crate::core::{Alpha, Seconds, ALPHA_ONE, ALPHA_ZERO};
 use crate::layer_builder::{LayerBuilder, LayerType, LayerWeight};
 use crate::processors::{FlowEvents, GraphVisitor};
 use crate::state_machine::{
@@ -358,13 +358,12 @@ impl<'a> Interpreter<'a> {
                         .expect("Valid transition");
 
                     let graph = &*self.visitor.graph;
-                    let progress = transition.progress.clone().map(|x| x.get(graph));
+                    let progress = transition.progress.map(|x| x.get(graph));
                     let duration = transition
                         .duration
-                        .clone()
                         .map(|x| x.get(graph))
                         .unwrap_or(Seconds(0.0));
-                    let transition_blend = transition.blend.clone().map(|x| x.get(graph));
+                    let transition_blend = transition.blend.map(|x| x.get(graph));
 
                     let state_transition = self
                         .visitor
@@ -517,7 +516,7 @@ impl<'a> Interpreter<'a> {
             break;
         }
 
-        return cookie;
+        cookie
     }
 
     fn notify_flow_status(

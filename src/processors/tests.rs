@@ -459,9 +459,9 @@ fn test_third_person_character() {
 
     const TRANSITION_DURATION: Seconds = Seconds(2.0);
 
-    const EVENT_JUMP: &'static str = "EVENT_JUMP";
-    const EVENT_FALLING: &'static str = "EVENT_FALLING";
-    const EVENT_LANDED: &'static str = "EVENT_LANDED";
+    const EVENT_JUMP: &str = "EVENT_JUMP";
+    const EVENT_FALLING: &str = "EVENT_FALLING";
+    const EVENT_LANDED: &str = "EVENT_LANDED";
 
     let jump_layer = {
         let off_to_falling = bind_parameter::<bool>("grounded")

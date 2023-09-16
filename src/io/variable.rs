@@ -32,10 +32,7 @@ impl<T: FromFloatUnchecked + 'static> Copy for NumberRef<T> {}
 
 impl<T: FromFloatUnchecked + 'static> Clone for NumberRef<T> {
     fn clone(&self) -> Self {
-        Self {
-            index: self.index.clone(),
-            _phantom: self._phantom.clone(),
-        }
+        *self
     }
 }
 
@@ -89,10 +86,7 @@ impl<T: FromFloatUnchecked + 'static> Copy for NumberMut<T> {}
 
 impl<T: FromFloatUnchecked + 'static> Clone for NumberMut<T> {
     fn clone(&self) -> Self {
-        Self {
-            index: self.index.clone(),
-            _phantom: self._phantom.clone(),
-        }
+        *self
     }
 }
 
@@ -173,7 +167,7 @@ impl Default for VectorRef {
 impl VectorRef {
     pub fn get(&self, graph: &Graph) -> [f32; 3] {
         match self {
-            VectorRef::Constant(value) => value.clone(),
+            VectorRef::Constant(value) => *value,
             &VectorRef::Variable(index) => graph.get_variable_number_array(index),
         }
     }

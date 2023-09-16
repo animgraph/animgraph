@@ -2,7 +2,8 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     io::{Resource, Timer},
-    AnimationClip, BlendSampleId, BlendTree, FlowStatus, Graph, GraphNodeConstructor, PoseNode, GraphMetrics, GraphNodeEntry,
+    AnimationClip, BlendSampleId, BlendTree, FlowStatus, Graph, GraphMetrics, GraphNodeConstructor,
+    GraphNodeEntry, PoseNode,
 };
 
 use super::{GraphNode, GraphVisitor};
@@ -18,7 +19,7 @@ impl GraphNodeConstructor for AnimationPoseNode {
         "animation_pose"
     }
 
-    fn construct_entry(self, metrics: &GraphMetrics) -> anyhow::Result<GraphNodeEntry>  {
+    fn construct_entry(self, metrics: &GraphMetrics) -> anyhow::Result<GraphNodeEntry> {
         metrics.validate_timer(&self.timer, Self::identity())?;
         metrics.validate_resource(&self.clip, Self::identity())?;
         Ok(GraphNodeEntry::Pose(Box::new(self)))
@@ -98,9 +99,7 @@ pub mod compile {
     impl NodeCompiler for AnimationPoseNode {
         type Settings = AnimationPoseSettings;
 
-        fn build<'a>(
-            context: &NodeSerializationContext<'a>,
-        ) -> Result<Value, NodeCompilationError> {
+        fn build(context: &NodeSerializationContext<'_>) -> Result<Value, NodeCompilationError> {
             let clip = context.input_resource(0)?;
             let timer = context.output_timer(0)?;
 
